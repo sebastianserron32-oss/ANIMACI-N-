@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Coctelera de estrategia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=block" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #1e2440; }
+  #stage {
+    position: relative; width: 1080px; height: 1920px; overflow: hidden;
+    background: radial-gradient(ellipse 90% 60% at 50% 42%, #262d4d 0%, #1e2440 70%);
+    font-family: 'Montserrat', 'Liberation Sans', Arial, sans-serif;
+  }
+  #grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.055) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(255,255,255,0.055) 2px, transparent 2px);
+    background-size: 60px 60px; background-position: 30px 0;
+    -webkit-mask-image: radial-gradient(ellipse 85% 70% at 50% 45%, #000 40%, transparent 100%);
+            mask-image: radial-gradient(ellipse 85% 70% at 50% 45%, #000 40%, transparent 100%);
+  }
+  svg { position: absolute; inset: 0; }
+  text { font-family: 'Montserrat', 'Liberation Sans', Arial, sans-serif; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+  <svg id="svg" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="steel" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#7d879a"/>
+        <stop offset="0.22" stop-color="#dfe5ee"/>
+        <stop offset="0.34" stop-color="#ffffff"/>
+        <stop offset="0.6" stop-color="#aeb7c7"/>
+        <stop offset="0.88" stop-color="#737d91"/>
+        <stop offset="1" stop-color="#a3adbe"/>
+      </linearGradient>
+      <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/>
+      </filter>
+    </defs>
+
+    <g id="camera">
+      <!-- Título -->
+      <g id="titleG">
+        <text id="title" x="540" y="215" text-anchor="middle" font-weight="900" font-size="92" fill="#ffffff" letter-spacing="4">ESTRATEGIA</text>
+        <rect id="titleRule" x="450" y="250" width="180" height="7" rx="3.5" fill="#c4a35a"/>
+      </g>
+
+      <g id="glasses"></g>
+      <g id="streams"></g>
+
+      <!-- Brazo + coctelera -->
+      <g id="shaker">
+        <line id="arm" x1="-100" y1="40" x2="-2092" y2="1711" stroke="#ffffff" stroke-width="34" stroke-linecap="round"/>
+        <g filter="url(#soft)">
+          <!-- vaso de la coctelera -->
+          <path d="M-95,-150 L95,-150 L78,140 Q76,150 64,150 L-64,150 Q-76,150 -78,140 Z" fill="url(#steel)"/>
+          <path d="M-52,-140 L-38,-140 L-33,138 L-45,138 Z" fill="#ffffff" opacity="0.55"/>
+          <rect x="-104" y="-164" width="208" height="26" rx="9" fill="#c4a35a"/>
+          <ellipse id="mouth" cx="0" cy="-160" rx="96" ry="18" fill="#141a30" stroke="#e0c27c" stroke-width="5"/>
+          <!-- tapa -->
+          <g id="cap">
+            <path d="M-94,-164 L-40,-275 L40,-275 L94,-164 Z" fill="url(#steel)"/>
+            <path d="M-50,-170 L-24,-268 L-14,-268 L-38,-170 Z" fill="#ffffff" opacity="0.5"/>
+            <rect x="-34" y="-318" width="68" height="48" rx="6" fill="url(#steel)"/>
+            <rect x="-42" y="-286" width="84" height="14" rx="7" fill="#c4a35a"/>
+          </g>
+          <!-- mano -->
+          <circle cx="-100" cy="40" r="40" fill="#ffffff"/>
+          <g stroke="#ffffff" stroke-width="20" stroke-linecap="round">
+            <line x1="-96" y1="2" x2="-34" y2="0"/>
+            <line x1="-96" y1="30" x2="-28" y2="28"/>
+            <line x1="-96" y1="58" x2="-32" y2="56"/>
+          </g>
+        </g>
+      </g>
+
+      <g id="words"></g>
+    </g>
+  </svg>
+</div>
+
+<script>
+const DURATION = 8;
+const NS = 'http://www.w3.org/2000/svg';
+const $ = id => document.getElementById(id);
+const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+// ====== DATOS (edita aquí) ======
+const WORDS = [
+  { text: 'Cercana',       color: '#ff5a5f', glass: [365, 880] },
+  { text: 'Reflexiva',     color: '#22c3e6', glass: [715, 880] },
+  { text: 'Actual',        color: '#8b6cff', glass: [180, 1290] },
+  { text: 'Inspiradora',   color: '#ffc83d', glass: [540, 1290] },
+  { text: 'Universitaria', color: '#3ddc97', glass: [900, 1290] },
+];
+// Posición de cada palabra cuando aparece, antes de entrar en la coctelera
+const FLOAT_POS = [[300, 420], [770, 420], [230, 530], [650, 530], [540, 640]];
+
+// ====== Geometría ======
+const RIM = 160, DEPTH = 125;              // copa tipo "coupe"
+const SHAKE_P = [540, 860];                // coctelera durante el batido
+const MOUTH = [540, 700];                  // boca abierta de la coctelera
+const POUR_ROT = -150, POUR_S = 0.8;
+const SPOUT_LOCAL = [0, -318];
+const SPOUT_Y = 680;
+
+// Fuente uniforme para las palabras dentro de las copas
+const ctx = document.createElement('canvas').getContext('2d');
+function fitSize(maxW, maxSize) {
+  let size = maxSize;
+  WORDS.forEach(w => { ctx.font = `800 ${maxSize}px Montserrat`; const wd = ctx.measureText(w.text).width; size = Math.min(size, maxSize * maxW / wd); });
+  return Math.floor(size);
+}
+
+// ====== Copas ======
+const halfW = y => RIM * Math.sqrt(Math.max(0, 1 - (y / DEPTH) ** 2));
+function buildGlasses(glassFont) {
+  WORDS.forEach((w, i) => {
+    const [gx, gy] = w.glass;
+    const g = mk('g', {}, $('glasses'));
+    const inner = mk('g', {}, g);
+    const clipId = 'bowl' + i;
+    const clip = mk('clipPath', { id: clipId }, $('svg').querySelector('defs'));
+    mk('path', { d: `M${-RIM},0 A${RIM},${DEPTH} 0 0 0 ${RIM},0 Z` }, clip);
+    // sombra
+    mk('ellipse', { cx: 0, cy: 312, rx: 110, ry: 16, fill: '#000', opacity: 0.22 }, inner);
+    // pie y tallo
+    mk('path', { d: `M-8,${DEPTH - 4} L-6,292 Q-6,298 -14,300 L14,300 Q6,298 6,292 L8,${DEPTH - 4} Z`, fill: 'rgba(255,255,255,0.75)' }, inner);
+    mk('ellipse', { cx: 0, cy: 300, rx: 82, ry: 14, fill: 'rgba(255,255,255,0.18)', stroke: 'rgba(255,255,255,0.9)', 'stroke-width': 5 }, inner);
+    // cuerpo de la copa
+    mk('path', { d: `M${-RIM},0 A${RIM},${DEPTH} 0 0 0 ${RIM},0 Z`, fill: 'rgba(255,255,255,0.07)' }, inner);
+    const liquid = mk('g', { 'clip-path': `url(#${clipId})` }, inner);
+    const liqRect = mk('rect', { x: -RIM, width: 2 * RIM, y: DEPTH, height: 0, fill: w.color }, liquid);
+    const bubbles = [0, 1, 2, 3].map(k => mk('circle', { r: 5 + (k % 2) * 3, fill: '#ffffff', opacity: 0 }, liquid));
+    const surface = mk('ellipse', { cx: 0, cy: DEPTH, rx: 0, ry: 0, fill: shade(w.color, 0.35) }, inner);
+    mk('path', { d: `M${-RIM},0 A${RIM},${DEPTH} 0 0 0 ${RIM},0`, fill: 'none', stroke: 'rgba(255,255,255,0.92)', 'stroke-width': 6, 'stroke-linejoin': 'round' }, inner);
+    mk('ellipse', { cx: 0, cy: 0, rx: RIM, ry: 18, fill: 'none', stroke: 'rgba(255,255,255,0.92)', 'stroke-width': 6 }, inner);
+    mk('path', { d: `M${-RIM + 30},22 Q${-RIM + 40},80 -40,108`, fill: 'none', stroke: '#ffffff', 'stroke-width': 7, 'stroke-linecap': 'round', opacity: 0.45 }, inner);
+    // palabra dentro de la copa
+    const label = mk('text', { x: 0, y: 66, 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-weight': 800, 'font-size': glassFont,
+      fill: '#ffffff', stroke: '#1e2440', 'stroke-width': 9, 'paint-order': 'stroke', 'stroke-linejoin': 'round', opacity: 0 }, inner);
+    label.textContent = w.text;
+    Object.assign(w, { g, inner, liqRect, surface, label, bubbles });
+  });
+}
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  r = Math.round(r + (255 - r) * amt); g = Math.round(g + (255 - g) * amt); b = Math.round(b + (255 - b) * amt);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ====== Palabras flotantes (etiquetas doradas) ======
+function buildWords() {
+  WORDS.forEach((w, i) => {
+    const g = mk('g', {}, $('words'));
+    ctx.font = '800 52px Montserrat';
+    const tw = ctx.measureText(w.text).width;
+    mk('rect', { x: -tw / 2 - 30, y: -42, width: tw + 60, height: 84, rx: 42, fill: '#c4a35a' }, g);
+    const t = mk('text', { x: 0, y: 2, 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-weight': 800, 'font-size': 52, fill: '#1e2440' }, g);
+    t.textContent = w.text;
+    w.pill = g;
+  });
+}
+
+// ====== Easing ======
+const clamp = x => Math.min(1, Math.max(0, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, p) => a + (b - a) * p;
+const easeOutCubic = x => 1 - Math.pow(1 - x, 3);
+const easeInCubic = x => x * x * x;
+const easeInOut = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const easeOutBack = (x, c1 = 1.70158) => { const c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const scaleAt = (cx, cy, s) => `translate(${cx} ${cy}) scale(${s}) translate(${-cx} ${-cy})`;
+const rot = ([x, y], deg) => { const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a); return [x * c - y * s, x * s + y * c]; };
+
+// ====== Línea de tiempo de los vertidos ======
+const POUR_START = 3.55, POUR_STEP = 0.74, MOVE = 0.2, FLOW = 0.5;
+const pourTimes = WORDS.map((w, i) => {
+  const t0 = POUR_START + i * POUR_STEP;
+  return { move0: t0 - MOVE, flow0: t0, flow1: t0 + FLOW };
+});
+const pourPos = gx => { const sp = rot(SPOUT_LOCAL, POUR_ROT); return [gx - sp[0] * POUR_S, SPOUT_Y - sp[1] * POUR_S]; };
+
+function shakerState(t) {
+  // Devuelve posición, rotación y escala de la coctelera
+  if (t < 3.2) {
+    // entrada + batido
+    const enter = easeOutBack(prog(t, 0.0, 0.7), 1.2);
+    let [x, y] = SHAKE_P; y += (1 - enter) * 1300;
+    let r = 0;
+    const amp = Math.sin(Math.PI * prog(t, 2.15, 3.2));
+    if (amp > 0) { const ph = (t - 2.15) * 2 * Math.PI * 5.5; r = Math.sin(ph) * 16 * amp; y += Math.sin(ph * 2) * -26 * amp; x += Math.cos(ph) * 18 * amp; }
+    return { x, y, r, s: 1 };
+  }
+  const first = pourPos(WORDS[0].glass[0]);
+  if (t < pourTimes[0].flow0) {
+    const p = easeInOut(prog(t, 3.2, pourTimes[0].flow0));
+    return { x: lerp(SHAKE_P[0], first[0], p), y: lerp(SHAKE_P[1], first[1], p), r: lerp(0, POUR_ROT, p), s: lerp(1, POUR_S, p) };
+  }
+  const last = pourTimes[WORDS.length - 1];
+  if (t > last.flow1) {
+    // sale de escena
+    const p = easeInCubic(prog(t, last.flow1 + 0.05, last.flow1 + 0.65));
+    const lp = pourPos(WORDS[WORDS.length - 1].glass[0]);
+    return { x: lp[0] + p * 500, y: lp[1] - p * 700, r: lerp(POUR_ROT, -40, p), s: POUR_S };
+  }
+  let x = first[0], y = first[1];
+  for (let i = 1; i < WORDS.length; i++) {
+    const p = easeInOut(prog(t, pourTimes[i].move0, pourTimes[i].flow0));
+    if (p > 0) { const a = pourPos(WORDS[i - 1].glass[0]), b = pourPos(WORDS[i].glass[0]); x = lerp(a[0], b[0], p); y = lerp(a[1], b[1], p) - Math.sin(p * Math.PI) * 40; }
+  }
+  return { x, y, r: POUR_ROT, s: POUR_S };
+}
+
+let streamEls = [];
+function render(t) {
+  $('grid').style.opacity = easeOutCubic(prog(t, 0, 0.6));
+
+  // Cámara: ligero acercamiento final
+  $('camera').setAttribute('transform', scaleAt(540, 1000, 1 + 0.015 * easeInOut(prog(t, 3.5, 8))));
+
+  // Título
+  const tp = easeOutBack(prog(t, 0.05, 0.7));
+  $('title').setAttribute('opacity', prog(t, 0.05, 0.4));
+  $('title').setAttribute('transform', `translate(0 ${(1 - tp) * -80})`);
+  // Al final, el título baja y se coloca encima de las copas
+  const tdown = easeInOut(prog(t, 7.1, 7.8));
+  $('titleG').setAttribute('transform', `translate(0 ${tdown * 420})`);
+  $('titleRule').setAttribute('transform', scaleAt(540, 253, easeOutCubic(prog(t, 0.45, 0.95))));
+
+  // Palabras: aparecen, luego caen dentro de la coctelera
+  WORDS.forEach((w, i) => {
+    const a = 0.3 + i * 0.1, d = 0.95 + i * 0.1;
+    const pin = easeOutBack(prog(t, a, a + 0.45), 2);
+    const pd = prog(t, d, d + 0.5);
+    const e = easeInCubic(pd);
+    const [fx, fy] = FLOAT_POS[i];
+    const x = lerp(fx, MOUTH[0], easeInOut(pd));
+    const y = lerp(fy, MOUTH[1], e) - Math.sin(pd * Math.PI) * 60;
+    const s = Math.max(0, pin) * lerp(1, 0.18, e);
+    const bob = Math.sin(t * 3 + i) * 5 * (1 - pd);
+    w.pill.setAttribute('transform', `translate(${x} ${y + bob}) rotate(${(i % 2 ? 1 : -1) * 20 * e}) scale(${s})`);
+    w.pill.setAttribute('opacity', pd >= 1 ? 0 : 1);
+  });
+
+  // Coctelera
+  const st = shakerState(t);
+  $('shaker').setAttribute('transform', `translate(${st.x} ${st.y}) rotate(${st.r}) scale(${st.s})`);
+  const capP = easeOutBack(prog(t, 1.85, 2.15), 1.6);
+  $('cap').setAttribute('transform', `translate(0 ${(1 - capP) * -260})`);
+  $('cap').setAttribute('opacity', prog(t, 1.85, 1.95));
+  $('mouth').setAttribute('opacity', capP > 0.9 ? 0 : 1);
+  // Las palabras pasan por detrás del borde de la coctelera: se dibujan encima, pero se ocultan al llegar a la boca
+
+  // Copas: suben desde abajo
+  WORDS.forEach((w, i) => {
+    const g0 = 2.85 + i * 0.09;
+    const gp = easeOutBack(prog(t, g0, g0 + 0.6), 1.3);
+    const [gx, gy] = w.glass;
+    const pt = pourTimes[i];
+    // nivel del líquido
+    const fill = easeOutCubic(prog(t, pt.flow0 + 0.08, pt.flow1 + 0.12));
+    const level = lerp(DEPTH, 20, fill);
+    w.liqRect.setAttribute('y', level);
+    w.liqRect.setAttribute('height', DEPTH - level + 2);
+    const sw = fill > 0 ? halfW(level) : 0;
+    w.surface.setAttribute('cy', level); w.surface.setAttribute('rx', sw); w.surface.setAttribute('ry', sw * 0.11);
+    w.surface.setAttribute('opacity', fill > 0.02 ? 1 : 0);
+    // burbujas
+    w.bubbles.forEach((b, k) => {
+      const per = 1.1, ph = ((t - pt.flow1 + k * 0.27) % per + per) % per / per;
+      const on = t > pt.flow1 + 0.1;
+      b.setAttribute('cx', -90 + k * 60 + Math.sin(ph * 6 + k) * 6);
+      b.setAttribute('cy', lerp(DEPTH - 10, 30, ph));
+      b.setAttribute('opacity', on ? 0.45 * Math.sin(ph * Math.PI) : 0);
+    });
+    // palabra aparece desde el líquido
+    const lp = prog(t, pt.flow0 + 0.25, pt.flow0 + 0.6);
+    const ls = easeOutBack(lp, 2.2);
+    w.label.setAttribute('opacity', lp > 0 ? Math.min(1, lp * 2) : 0);
+    w.label.setAttribute('transform', `translate(0 ${(1 - easeOutCubic(lp)) * 40}) scale(${Math.max(0, ls)})`);
+    // pequeño balanceo al recibir el líquido
+    const wob = t > pt.flow0 ? Math.sin((t - pt.flow0) * 14) * 3.5 * Math.exp(-(t - pt.flow0) * 3) : 0;
+    w.g.setAttribute('transform', `translate(${gx} ${gy + (1 - gp) * 1150}) rotate(${wob} 0 300)`);
+  });
+
+  // Chorros de líquido
+  WORDS.forEach((w, i) => {
+    const pt = pourTimes[i], el = streamEls[i];
+    const [gx, gy] = w.glass;
+    const fill = easeOutCubic(prog(t, pt.flow0 + 0.08, pt.flow1 + 0.12));
+    const surfY = gy + lerp(DEPTH, 20, fill);
+    const head = easeInCubic(prog(t, pt.flow0, pt.flow0 + 0.16));          // cae
+    const tail = easeInCubic(prog(t, pt.flow1 - 0.05, pt.flow1 + 0.15));   // se corta
+    if (head <= 0 || tail >= 1) { el.setAttribute('opacity', 0); return; }
+    const y0 = lerp(SPOUT_Y, surfY, tail), y1 = lerp(SPOUT_Y, surfY, head);
+    const wv = Math.sin(t * 40) * 2;
+    el.setAttribute('d', `M${gx - 9} ${y0} Q${gx - 7 + wv} ${(y0 + y1) / 2} ${gx - 6} ${y1} L${gx + 6} ${y1} Q${gx + 7 + wv} ${(y0 + y1) / 2} ${gx + 9} ${y0} Z`);
+    el.setAttribute('opacity', 1);
+  });
+}
+
+function init() {
+  buildGlasses(fitSize(280, 44));
+  buildWords();
+  streamEls = WORDS.map(w => mk('path', { fill: w.color }, $('streams')));
+  window.render = render;
+  window.DURATION = DURATION;
+  window.ready = true;
+}
+
+document.fonts.ready.then(() => {
+  init();
+  if (!location.search.includes('export')) {
+    const t0 = performance.now();
+    const loop = now => { render(((now - t0) / 1000) % (DURATION + 1)); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  } else {
+    render(0);
+  }
+});
+</script>
+</body>
+</html>

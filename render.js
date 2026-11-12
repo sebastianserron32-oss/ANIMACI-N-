@@ -15,6 +15,7 @@ const FPS = Number(process.argv[4] || 60);
   const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
   await page.goto('file://' + path.resolve(__dirname, SRC) + '?export');
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(() => typeof window.render === 'function');
   const duration = await page.evaluate(() => window.DURATION);
   const frames = Math.round(duration * FPS);
 
