@@ -1,16 +1,19 @@
-// Renderiza animacion.html a MP4 1080x1920 (9:16), 8 s.
-// Uso: node render.js [fps]   (requiere playwright y ffmpeg)
+// Renderiza una animación HTML a MP4 1080x1920 (9:16).
+// Uso: node render.js [archivo.html] [salida.mp4] [fps]   (requiere playwright y ffmpeg)
+// Ej.: node render.js animacion.html animacion_9x16.mp4 60
+//      node render.js redes.html redes_9x16.mp4 60
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const path = require('path');
 
-const FPS = Number(process.argv[2] || 60);
-const OUT = path.join(__dirname, 'animacion_9x16.mp4');
+const SRC = process.argv[2] || 'animacion.html';
+const OUT = path.resolve(__dirname, process.argv[3] || 'animacion_9x16.mp4');
+const FPS = Number(process.argv[4] || 60);
 
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
-  await page.goto('file://' + path.join(__dirname, 'animacion.html') + '?export');
+  await page.goto('file://' + path.resolve(__dirname, SRC) + '?export');
   await page.evaluate(() => document.fonts.ready);
   const duration = await page.evaluate(() => window.DURATION);
   const frames = Math.round(duration * FPS);
