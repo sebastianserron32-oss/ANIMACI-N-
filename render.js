@@ -1,7 +1,8 @@
-// Renderiza una animación HTML a MP4 1080x1920 (9:16).
+// Renderiza una animación HTML a MP4 (9:16 por defecto; 4:5 si la página define window.SIZE).
 // Uso: node render.js [archivo.html] [salida.mp4] [fps]   (requiere playwright y ffmpeg)
 // Ej.: node render.js animacion.html animacion_9x16.mp4 60
 //      node render.js redes.html redes_9x16.mp4 60
+//      node render.js hibrida.html hibrida_4x5.mp4 60
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -16,6 +17,9 @@ const FPS = Number(process.argv[4] || 60);
   await page.goto('file://' + path.resolve(__dirname, SRC) + '?export');
   await page.evaluate(() => document.fonts.ready);
   await page.waitForFunction(() => typeof window.render === 'function');
+  // Tamaño del lienzo: cada animación puede declarar window.SIZE = [ancho, alto] (por defecto 1080x1920)
+  const [W, H] = await page.evaluate(() => window.SIZE || [1080, 1920]);
+  await page.setViewportSize({ width: W, height: H });
   const duration = await page.evaluate(() => window.DURATION);
   const frames = Math.round(duration * FPS);
 

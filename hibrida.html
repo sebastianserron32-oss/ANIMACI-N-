@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Educación híbrida</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=block" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1350px; overflow: hidden; background: #1e2440; }
+  #stage {
+    position: relative; width: 1080px; height: 1350px; overflow: hidden;
+    background: radial-gradient(ellipse 90% 65% at 50% 50%, #262d4d 0%, #1e2440 72%);
+  }
+  #grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.05) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(255,255,255,0.05) 2px, transparent 2px);
+    background-size: 60px 60px; background-position: 30px 0;
+    -webkit-mask-image: radial-gradient(ellipse 85% 70% at 50% 50%, #000 40%, transparent 100%);
+            mask-image: radial-gradient(ellipse 85% 70% at 50% 50%, #000 40%, transparent 100%);
+  }
+  svg { position: absolute; inset: 0; }
+  text { font-family: 'Montserrat', 'Liberation Sans', Arial, sans-serif; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+  <svg id="svg" width="1080" height="1350" viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="beamGrad" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="#fff3c4" stop-opacity="0.9"/>
+        <stop offset="1" stop-color="#e0c27c" stop-opacity="0.25"/>
+      </linearGradient>
+      <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#000" flood-opacity="0.35"/>
+      </filter>
+      <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.4"/>
+      </filter>
+      <clipPath id="logoClip"><rect x="7" y="7" width="433" height="433" rx="62"/></clipPath>
+    </defs>
+    <g id="camera">
+      <g id="titleG">
+        <text id="title" x="540" y="128" text-anchor="middle" font-weight="900" font-size="64" fill="#ffffff">EDUCACIÓN <tspan fill="#c4a35a">HÍBRIDA</tspan></text>
+        <rect id="titleRule" x="460" y="160" width="160" height="7" rx="3.5" fill="#c4a35a"/>
+      </g>
+      <g id="scene" filter="url(#soft)"></g>
+      <g id="logoCard" filter="url(#cardShadow)">
+        <rect x="-4" y="-4" width="455" height="455" rx="68" fill="#c4a35a"/>
+        <image href="assets/logo_url.png" x="0" y="0" width="447" height="447" clip-path="url(#logoClip)" preserveAspectRatio="xMidYMid slice"/>
+        <rect id="logoShine" x="-200" y="-40" width="90" height="540" fill="#ffffff" opacity="0.35" transform="skewX(-20)" clip-path="url(#logoClip)"/>
+      </g>
+    </g>
+  </svg>
+</div>
+
+<script>
+window.SIZE = [1080, 1350];
+const DURATION = 10;
+const NS = 'http://www.w3.org/2000/svg';
+const $ = id => document.getElementById(id);
+const mk = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+// ====== Paleta ======
+const NAVY = '#1e2440', NAVY_D = '#141a30', NAVY_M = '#2d3a66', NAVY_L = '#3a4a85';
+const GOLD = '#c4a35a', GOLD_D = '#a8873f', GOLD_L = '#e0c27c', GOLD_DD = '#8a6d2f';
+const WHITE = '#ffffff', LIGHT = '#cfd5e2', GRAY = '#9aa3b8', GRAY_D = '#5a6378';
+const SKIN = ['#f1c9a5', '#d9a07a', '#a8714f', '#f4d4b8', '#c48a62', '#e8b48f'];
+const HAIR = ['#2b1d16', '#4a2e1e', '#141414', '#6b4a2b'];
+
+// ====== Proyección isométrica ======
+const s = 60, C = s * Math.cos(Math.PI / 6), S = s * 0.5;
+const X = 10, Y = 9.5, HZ = 5;
+const OX = 540 - (X - Y) * C / 2, OY = 575;
+const P = (x, y, z = 0) => [OX + (x - y) * C, OY + (x + y) * S - z * s];
+const pts = arr => arr.map(p => p.join(',')).join(' ');
+const poly = (g, arr, fill, extra = {}) => mk('polygon', { points: pts(arr), fill, ...extra }, g);
+function box(g, x, y, z, w, d, h, top, left, right) {
+  poly(g, [P(x, y + d, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x, y + d, z + h)], left);
+  poly(g, [P(x + w, y, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x + w, y, z + h)], right);
+  poly(g, [P(x, y, z + h), P(x + w, y, z + h), P(x + w, y + d, z + h), P(x, y + d, z + h)], top);
+}
+// Planos para dibujar contenido "pegado" a una superficie (unidades del mundo)
+const planeLeftWall = (y1, ztop, g) => { const [e, f] = P(0, y1, ztop); return mk('g', { transform: `matrix(${C / s},${-S / s},0,1,${e},${f}) scale(${s})` }, g); };
+const planeY = (x0, y0, ztop, g) => { const [e, f] = P(x0, y0, ztop); return mk('g', { transform: `matrix(${C / s},${S / s},0,1,${e},${f}) scale(${s})` }, g); };
+
+// ====== Objetos de la escena (con su animación de entrada) ======
+const scene = $('scene');
+const objects = []; // { g, t0, kind, anchor }
+function obj(t0, kind = 'drop', anchor = null) { const g = mk('g', {}, scene); objects.push({ g, t0, kind, anchor }); return g; }
+
+// --- Piso ---
+{
+  const g = obj(0.0, 'pop', P(X / 2, Y / 2));
+  box(g, 0, 0, -0.45, X, Y, 0.45, '#e6e9f0', '#b8bfd0', '#8f98ae');
+  // líneas sutiles del piso
+  for (let i = 1; i < X; i++) mk('line', { x1: P(i, 0)[0], y1: P(i, 0)[1], x2: P(i, Y)[0], y2: P(i, Y)[1], stroke: '#d6dae4', 'stroke-width': 2 }, g);
+  for (let j = 1; j < Y; j++) mk('line', { x1: P(0, j)[0], y1: P(0, j)[1], x2: P(X, j)[0], y2: P(X, j)[1], stroke: '#d6dae4', 'stroke-width': 2 }, g);
+}
+
+// --- Pared izquierda (dorada) con pantalla de videollamada ---
+const wallL = obj(0.35);
+box(wallL, -0.3, -0.3, 0, 0.3, Y + 0.3, HZ, GOLD_L, GOLD_D, GOLD);
+{ const pl = planeLeftWall(Y, 0.35, wallL); mk('rect', { x: 0, y: 0, width: Y, height: 0.35, fill: GOLD_D }, pl); }
+// --- Pared derecha (blanca) ---
+const wallR = obj(0.5);
+box(wallR, 0, -0.3, 0, X, 0.3, HZ, WHITE, '#f3f4f8', LIGHT);
+{ const pl = planeY(0, 0, 0.35, wallR); mk('rect', { x: 0, y: 0, width: X, height: 0.35, fill: GRAY }, pl); }
+
+// --- Pantalla de videollamada (estudiantes en línea) ---
+const VW = { y1: 6.9, ztop: 4.4, w: 4.9, h: 2.6 };
+const video = obj(1.15, 'fade');
+const vplane = planeLeftWall(VW.y1, VW.ztop, video);
+mk('rect', { x: -0.12, y: -0.12, width: VW.w + 0.24, height: VW.h + 0.24, rx: 0.08, fill: NAVY_D }, vplane);
+const screenOn = mk('g', {}, vplane);
+const TILE_COLORS = [NAVY_M, GOLD_L, NAVY_L, LIGHT, NAVY_M, GOLD];
+const tiles = [];
+const tw = VW.w / 3, th = VW.h / 2;
+for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) {
+  const k = r * 3 + c, col = TILE_COLORS[k];
+  const tg = mk('g', {}, screenOn);
+  mk('rect', { x: c * tw + 0.03, y: r * th + 0.03, width: tw - 0.06, height: th - 0.06, fill: col }, tg);
+  const dark = [NAVY_M, NAVY_L, GOLD].includes(col);
+  const fg = dark ? WHITE : NAVY_M;
+  const cx = c * tw + tw / 2, cy = r * th + th / 2;
+  const av = mk('g', {}, tg);
+  mk('path', { d: `M${cx - 0.42},${r * th + th - 0.03} Q${cx - 0.4},${cy + 0.18} ${cx},${cy + 0.16} Q${cx + 0.4},${cy + 0.18} ${cx + 0.42},${r * th + th - 0.03} Z`, fill: fg }, av);
+  mk('circle', { cx, cy: cy - 0.12, r: 0.22, fill: fg }, av);
+  mk('path', { d: `M${cx - 0.27},${cy - 0.1} A0.28,0.28 0 0 1 ${cx + 0.27},${cy - 0.1}`, fill: 'none', stroke: dark ? GOLD_L : NAVY, 'stroke-width': 0.06, 'stroke-linecap': 'round' }, av);
+  mk('rect', { x: cx - 0.33, y: cy - 0.16, width: 0.1, height: 0.18, rx: 0.04, fill: dark ? GOLD_L : NAVY }, av);
+  mk('rect', { x: cx + 0.23, y: cy - 0.16, width: 0.1, height: 0.18, rx: 0.04, fill: dark ? GOLD_L : NAVY }, av);
+  const ring = mk('rect', { x: c * tw + 0.06, y: r * th + 0.06, width: tw - 0.12, height: th - 0.12, fill: 'none', stroke: GOLD_L, 'stroke-width': 0.06, opacity: 0 }, tg);
+  tiles.push({ tg, av, ring, cx, cy });
+}
+// cámara web y señal wifi sobre la pantalla
+mk('rect', { x: VW.w / 2 - 0.2, y: -0.3, width: 0.4, height: 0.16, rx: 0.06, fill: NAVY_D }, vplane);
+mk('circle', { cx: VW.w / 2, cy: -0.22, r: 0.04, fill: GOLD_L }, vplane);
+const wifi = [0, 1, 2].map(k => mk('path', { d: `M${VW.w / 2 - 0.2 - k * 0.18},${-0.45 - k * 0.12} Q${VW.w / 2},${-0.7 - k * 0.22} ${VW.w / 2 + 0.2 + k * 0.18},${-0.45 - k * 0.12}`, fill: 'none', stroke: NAVY_D, 'stroke-width': 0.07, 'stroke-linecap': 'round' }, vplane));
+
+// --- Pizarrón (verde → azul marino) ---
+const board = obj(1.25, 'fade');
+const bplane = planeY(3.1, 0, 4.3, board);
+mk('rect', { x: -0.12, y: -0.12, width: 3.94, height: 2.64, fill: GOLD_L }, bplane);
+mk('rect', { x: 0, y: 0, width: 3.7, height: 2.4, fill: NAVY }, bplane);
+mk('rect', { x: -0.05, y: 2.4, width: 3.8, height: 0.1, fill: GOLD_D }, bplane);
+const chalkClip = mk('clipPath', { id: 'chalkClip' }, $('svg').querySelector('defs'));
+const chalkRect = mk('rect', { x: 0, y: 0, width: 0, height: 2.4 }, chalkClip);
+const chalk = mk('g', { 'clip-path': 'url(#chalkClip)', fill: 'none', stroke: WHITE, 'stroke-width': 0.05, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.9 }, bplane);
+// triángulo + fórmula + garabatos
+mk('path', { d: 'M0.35,1.75 L1.35,1.75 L0.35,0.55 Z' }, chalk);
+mk('path', { d: 'M0.35,1.55 L0.55,1.55 L0.55,1.75' }, chalk);
+const formula = mk('text', { x: 1.55, y: 0.85, 'font-size': 0.34, 'font-weight': 700, fill: WHITE, stroke: 'none' }, chalk);
+formula.textContent = 'a² + b² = c²';
+mk('path', { d: 'M1.6,1.25 q0.1,-0.12 0.2,0 t0.2,0 t0.2,0 t0.2,0 t0.2,0 t0.2,0' }, chalk);
+mk('path', { d: 'M1.6,1.6 q0.1,-0.12 0.2,0 t0.2,0 t0.2,0 t0.2,0' }, chalk);
+mk('path', { d: 'M2.6,1.95 L3.3,1.95', stroke: GOLD_L }, chalk);
+
+// --- Pantalla de proyección ---
+const proj = obj(1.35, 'fade');
+const pplane = planeY(7.25, 0, 4.15, proj);
+mk('rect', { x: -0.1, y: -0.18, width: 2.6, height: 0.16, rx: 0.05, fill: GRAY_D }, pplane);
+mk('rect', { x: 0, y: 0, width: 2.4, height: 2.6, fill: '#f7f8fb', stroke: GRAY_D, 'stroke-width': 0.05 }, pplane);
+const slide = mk('g', { opacity: 0 }, pplane);
+mk('rect', { x: 0.25, y: 0.25, width: 1.2, height: 0.14, rx: 0.07, fill: NAVY }, slide);
+const bars = [0.9, 1.5, 1.15].map((h, k) => ({ h, el: mk('rect', { x: 0.45 + k * 0.55, width: 0.36, y: 2.3, height: 0, fill: k === 1 ? GOLD : NAVY_L }, slide) }));
+mk('line', { x1: 0.3, y1: 2.3, x2: 2.15, y2: 2.3, stroke: NAVY, 'stroke-width': 0.05 }, slide);
+
+// --- Haz del proyector ---
+const beam = mk('polygon', { points: pts([P(8.7, 2.05, 1.0), P(7.25, 0, 1.55), P(7.25, 0, 4.15), P(9.65, 0, 4.15), P(9.65, 0, 1.55)]), fill: 'url(#beamGrad)', opacity: 0 }, scene);
+objects.push({ g: beam, t0: 99, kind: 'none' });
+
+// ====== Personas ======
+function person(g, base, opts) {
+  // base: punto del mundo donde se apoya el cuerpo (asiento o piso). Se dibuja en pantalla.
+  const [bx, by] = base;
+  const u = s;
+  const parts = {};
+  const shirt = opts.shirt, skin = opts.skin, hair = opts.hair;
+  if (opts.standing) {
+    mk('ellipse', { cx: bx, cy: by, rx: 0.45 * u, ry: 0.2 * u, fill: '#000', opacity: 0.12 }, g);
+    mk('rect', { x: bx - 0.2 * u, y: by - 0.95 * u, width: 0.17 * u, height: 0.95 * u, rx: 0.06 * u, fill: opts.pants }, g);
+    mk('rect', { x: bx + 0.03 * u, y: by - 0.95 * u, width: 0.17 * u, height: 0.95 * u, rx: 0.06 * u, fill: opts.pants }, g);
+    mk('ellipse', { cx: bx - 0.14 * u, cy: by - 0.02 * u, rx: 0.14 * u, ry: 0.07 * u, fill: NAVY_D }, g);
+    mk('ellipse', { cx: bx + 0.14 * u, cy: by - 0.02 * u, rx: 0.14 * u, ry: 0.07 * u, fill: NAVY_D }, g);
+    const top = by - 0.95 * u;
+    parts.armBack = mk('line', { x1: bx + 0.22 * u, y1: top - 0.55 * u, x2: bx + 0.3 * u, y2: top - 0.05 * u, stroke: skin, 'stroke-width': 0.13 * u, 'stroke-linecap': 'round' }, g);
+    mk('path', { d: `M${bx - 0.28 * u},${top + 0.05 * u} L${bx - 0.3 * u},${top - 0.55 * u} Q${bx},${top - 0.72 * u} ${bx + 0.3 * u},${top - 0.55 * u} L${bx + 0.28 * u},${top + 0.05 * u} Z`, fill: shirt }, g);
+    parts.neck = [bx, top - 0.7 * u];
+    parts.headG = mk('g', {}, g);
+    mk('circle', { cx: bx, cy: top - 0.92 * u, r: 0.23 * u, fill: skin }, parts.headG);
+    mk('path', { d: `M${bx - 0.24 * u},${top - 0.92 * u} Q${bx - 0.26 * u},${top - 1.22 * u} ${bx},${top - 1.2 * u} Q${bx + 0.26 * u},${top - 1.2 * u} ${bx + 0.22 * u},${top - 0.98 * u} Q${bx + 0.05 * u},${top - 1.06 * u} ${bx - 0.24 * u},${top - 0.92 * u} Z`, fill: hair }, parts.headG);
+    parts.arm = mk('g', {}, g);
+    parts.shoulder = [bx - 0.24 * u, top - 0.5 * u];
+    mk('line', { x1: parts.shoulder[0], y1: parts.shoulder[1], x2: parts.shoulder[0] - 0.55 * u, y2: parts.shoulder[1] + 0.05 * u, stroke: shirt, 'stroke-width': 0.15 * u, 'stroke-linecap': 'round' }, parts.arm);
+    mk('circle', { cx: parts.shoulder[0] - 0.6 * u, cy: parts.shoulder[1] + 0.05 * u, r: 0.08 * u, fill: skin }, parts.arm);
+    return parts;
+  }
+  // sentado (de espaldas, mirando al pizarrón)
+  const top = by - 0.62 * u;
+  mk('path', { d: `M${bx - 0.27 * u},${by} L${bx - 0.29 * u},${top + 0.1 * u} Q${bx},${top - 0.08 * u} ${bx + 0.29 * u},${top + 0.1 * u} L${bx + 0.27 * u},${by} Z`, fill: shirt }, g);
+  parts.arm = mk('line', { x1: bx + 0.2 * u, y1: top + 0.18 * u, x2: opts.hand[0], y2: opts.hand[1], stroke: shirt, 'stroke-width': 0.13 * u, 'stroke-linecap': 'round' }, g);
+  parts.handDot = mk('circle', { cx: opts.hand[0], cy: opts.hand[1], r: 0.07 * u, fill: skin }, g);
+  parts.headG = mk('g', {}, g);
+  const hy = top - 0.2 * u;
+  if (opts.hairStyle === 'long') mk('path', { d: `M${bx - 0.24 * u},${hy} Q${bx - 0.3 * u},${hy + 0.55 * u} ${bx - 0.1 * u},${hy + 0.55 * u} L${bx + 0.12 * u},${hy + 0.5 * u} Q${bx + 0.26 * u},${hy + 0.3 * u} ${bx + 0.22 * u},${hy} Z`, fill: hair }, parts.headG);
+  mk('circle', { cx: bx, cy: hy, r: 0.22 * u, fill: skin }, parts.headG);
+  if (opts.hairStyle === 'curly') {
+    [[-0.14, -0.12], [0, -0.18], [0.14, -0.12], [-0.18, 0.02], [0.18, 0.02], [-0.08, 0.06], [0.08, 0.06]].forEach(([dx, dy]) => mk('circle', { cx: bx + dx * u, cy: hy + dy * u, r: 0.11 * u, fill: hair }, parts.headG));
+  } else {
+    mk('circle', { cx: bx - 0.02 * u, cy: hy - 0.02 * u, r: 0.22 * u, fill: hair }, parts.headG);
+    if (opts.hairStyle === 'pony') mk('ellipse', { cx: bx - 0.2 * u, cy: hy + 0.12 * u, rx: 0.08 * u, ry: 0.2 * u, fill: hair }, parts.headG);
+  }
+  mk('ellipse', { cx: bx + 0.19 * u, cy: hy + 0.03 * u, rx: 0.05 * u, ry: 0.08 * u, fill: skin }, parts.headG);
+  return parts;
+}
+
+// --- Profesor ---
+const teacherG = obj(2.75, 'popUp', P(2.1, 1.7));
+const teacher = person(teacherG, P(2.1, 1.7), { standing: true, shirt: GOLD, pants: NAVY_L, skin: SKIN[0], hair: HAIR[2] });
+
+// --- Escritorio del profesor, laptop y proyector ---
+const tdesk = obj(1.6);
+box(tdesk, 7.3, 1.95, 0, 0.1, 0.9, 0.8, GRAY_D, GRAY_D, GRAY_D);
+box(tdesk, 7.3, 2.75, 0, 2.4, 0.1, 0.8, LIGHT, '#e9ecf2', GRAY);
+box(tdesk, 9.55, 1.95, 0, 0.15, 0.9, 0.8, GRAY_D, '#7d879a', GRAY_D);
+box(tdesk, 7.25, 1.9, 0.8, 2.5, 1.0, 0.1, WHITE, LIGHT, GRAY);
+box(tdesk, 7.7, 2.15, 0.9, 0.7, 0.5, 0.04, LIGHT, GRAY, GRAY_D);
+{ const lp = planeY(7.7, 2.15, 1.38, tdesk); mk('rect', { x: 0, y: 0, width: 0.7, height: 0.48, rx: 0.03, fill: GRAY }, lp); }
+box(tdesk, 8.45, 1.98, 0.9, 0.55, 0.55, 0.22, '#3d4660', NAVY_D, '#2a3048');
+const lens = mk('circle', { cx: P(8.7, 1.98, 1.0)[0], cy: P(8.7, 1.98, 1.0)[1], r: 6, fill: GOLD_L, opacity: 0.3 }, tdesk);
+
+// --- Pupitres, sillas y estudiantes ---
+const COLS = [1.2, 3.85, 6.5], ROWS = [3.6, 5.55, 7.45];
+const SEATED = { '0,0': 0, '0,2': 1, '1,1': 2, '2,0': 3, '2,2': 4, '1,0': 5 };
+const HAIRSTYLES = ['pony', 'curly', 'long', 'short', 'pony', 'short'];
+const SHIRTS = [LIGHT, GRAY, LIGHT, GRAY, LIGHT, GRAY];
+const stations = [];
+ROWS.forEach((y, r) => COLS.forEach((x, c) => stations.push({ x, y, r, c, key: x + 0.85 + y + 1 })));
+const students = [];
+const laptops = [];
+stations.sort((a, b) => a.key - b.key).forEach((st, idx) => {
+  const { x, y, r, c } = st;
+  const g = obj(1.75 + idx * 0.12);
+  const chairCol = (r + c) % 2 ? GOLD : NAVY_L;
+  const chairSide = (r + c) % 2 ? GOLD_D : NAVY_M;
+  const chairDark = (r + c) % 2 ? GOLD_DD : NAVY;
+  // patas del pupitre
+  [[x + 0.05, y + 0.05], [x + 1.6, y + 0.05], [x + 0.05, y + 0.75], [x + 1.6, y + 0.75]].forEach(([lx, ly]) => box(g, lx, ly, 0, 0.07, 0.07, 0.72, GRAY_D, GRAY_D, '#454c5e'));
+  box(g, x, y, 0.72, 1.72, 0.85, 0.08, WHITE, LIGHT, GRAY);
+  const key = `${r},${c}`;
+  const sIdx = SEATED[key];
+  // laptop o libro
+  if (sIdx !== undefined && sIdx !== 3) {
+    box(g, x + 0.6, y + 0.18, 0.8, 0.62, 0.45, 0.03, LIGHT, GRAY, GRAY_D);
+    const lp = planeY(x + 0.6, y + 0.18, 1.27, g);
+    mk('rect', { x: 0, y: 0, width: 0.62, height: 0.44, rx: 0.03, fill: '#4a5268' }, lp);
+    const scr = mk('g', { opacity: 0 }, lp);
+    mk('rect', { x: 0.04, y: 0.04, width: 0.54, height: 0.36, fill: NAVY_M }, scr);
+    // mini videollamada en la laptop (estudiante conectado)
+    mk('rect', { x: 0.07, y: 0.07, width: 0.23, height: 0.14, fill: GOLD_L }, scr);
+    mk('rect', { x: 0.32, y: 0.07, width: 0.23, height: 0.14, fill: NAVY_L }, scr);
+    mk('rect', { x: 0.07, y: 0.24, width: 0.48, height: 0.04, fill: WHITE, opacity: 0.6 }, scr);
+    mk('rect', { x: 0.07, y: 0.31, width: 0.3, height: 0.04, fill: WHITE, opacity: 0.6 }, scr);
+    laptops.push({ scr, t: 4.5 + laptops.length * 0.12 });
+  } else if (sIdx === 3) {
+    box(g, x + 0.7, y + 0.25, 0.8, 0.5, 0.35, 0.03, NAVY_D, NAVY_D, NAVY_D); // tableta
+    box(g, x + 1.25, y + 0.2, 0.8, 0.35, 0.45, 0.1, GOLD, GOLD_D, GOLD_DD);   // libro
+  } else if ((r + c) % 2 === 0) {
+    box(g, x + 1.1, y + 0.25, 0.8, 0.38, 0.48, 0.09, GOLD_L, GOLD, GOLD_D);
+  }
+  // silla: pata, asiento
+  box(g, x + 0.83, y + 1.23, 0, 0.07, 0.07, 0.42, GRAY_D, GRAY_D, '#454c5e');
+  box(g, x + 0.5, y + 1.15, 0.42, 0.72, 0.68, 0.09, chairCol, chairSide, chairDark);
+  // estudiante
+  if (sIdx !== undefined) {
+    const sg = mk('g', {}, g);
+    const base = P(x + 0.86, y + 1.42, 0.52);
+    const hand = P(x + 0.95, y + 0.55, 0.86);
+    const parts = person(sg, base, { shirt: SHIRTS[sIdx], skin: SKIN[(sIdx + 1) % SKIN.length], hair: HAIR[sIdx % HAIR.length], hairStyle: HAIRSTYLES[sIdx], hand });
+    students.push({ sg, parts, hand, i: sIdx, base, t0: 2.95 + students.length * 0.13 });
+  }
+  // respaldo
+  box(g, x + 0.5, y + 1.75, 0.5, 0.72, 0.09, 0.62, chairCol, chairSide, chairDark);
+});
+
+// ====== Easing ======
+const clamp = v => Math.min(1, Math.max(0, v));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, p) => a + (b - a) * p;
+const easeOutCubic = v => 1 - Math.pow(1 - v, 3);
+const easeInOut = v => v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2;
+const easeOutBack = (v, c1 = 1.70158) => { const c3 = c1 + 1; return 1 + c3 * Math.pow(v - 1, 3) + c1 * Math.pow(v - 1, 2); };
+const easeOutBounce = v => { const n = 7.5625, d = 2.75; if (v < 1 / d) return n * v * v; if (v < 2 / d) return n * (v -= 1.5 / d) * v + 0.75; if (v < 2.5 / d) return n * (v -= 2.25 / d) * v + 0.9375; return n * (v -= 2.625 / d) * v + 0.984375; };
+const scaleAt = (cx, cy, k) => `translate(${cx} ${cy}) scale(${k}) translate(${-cx} ${-cy})`;
+
+function render(t) {
+  $('grid').style.opacity = easeOutCubic(prog(t, 0, 0.6));
+  $('camera').setAttribute('transform', scaleAt(540, 700, lerp(0.97, 1.02, easeInOut(prog(t, 0, 10)))));
+
+  // Título
+  const tp = easeOutCubic(prog(t, 0.15, 0.9));
+  $('title').setAttribute('opacity', tp);
+  $('title').setAttribute('letter-spacing', 1 + (1 - tp) * 26);
+  $('title').setAttribute('transform', `translate(0 ${(1 - tp) * -24})`);
+  $('titleRule').setAttribute('transform', scaleAt(540, 163, easeOutCubic(prog(t, 0.6, 1.1))));
+
+  // Entradas de los objetos
+  objects.forEach(o => {
+    if (o.kind === 'none') return;
+    const p = prog(t, o.t0, o.t0 + (o.kind === 'drop' ? 0.75 : 0.6));
+    if (o.kind === 'drop') {
+      const e = easeOutBounce(p);
+      o.g.setAttribute('transform', `translate(0 ${(1 - e) * -260})`);
+      o.g.setAttribute('opacity', clamp(p * 4));
+    } else if (o.kind === 'pop') {
+      const e = Math.max(0, easeOutBack(p, 1.3));
+      o.g.setAttribute('transform', scaleAt(o.anchor[0], o.anchor[1], 0.6 + 0.4 * e));
+      o.g.setAttribute('opacity', clamp(p * 3));
+    } else if (o.kind === 'popUp') {
+      const e = Math.max(0, easeOutBack(p, 2));
+      o.g.setAttribute('transform', `translate(${o.anchor[0]} ${o.anchor[1]}) scale(${e}) translate(${-o.anchor[0]} ${-o.anchor[1]})`);
+      o.g.setAttribute('opacity', p > 0 ? 1 : 0);
+    } else if (o.kind === 'fade') {
+      o.g.setAttribute('opacity', easeOutCubic(p));
+      o.g.setAttribute('transform', `translate(0 ${(1 - easeOutCubic(p)) * -30})`);
+    }
+  });
+
+  // Estudiantes aparecen y escriben
+  students.forEach(st => {
+    const p = Math.max(0, easeOutBack(prog(t, st.t0, st.t0 + 0.5), 2));
+    st.sg.setAttribute('transform', scaleAt(st.base[0], st.base[1], p));
+    const typing = t > 4.4 ? Math.sin(t * 18 + st.i * 2) * 2.5 : 0;
+    st.parts.arm.setAttribute('x2', st.hand[0] + typing); st.parts.handDot.setAttribute('cx', st.hand[0] + typing);
+    const nod = t > 3.6 ? Math.sin(t * 2.2 + st.i) * 2 : 0;
+    st.parts.headG.setAttribute('transform', `rotate(${nod} ${st.base[0]} ${st.base[1] - 0.6 * s})`);
+  });
+
+  // Profesor: gesto con el brazo y movimiento de cabeza
+  const gest = t > 3.3 ? Math.sin((t - 3.3) * 2.4) * 18 - 8 : 0;
+  teacher.arm.setAttribute('transform', `rotate(${gest} ${teacher.shoulder[0]} ${teacher.shoulder[1]})`);
+  teacher.headG.setAttribute('transform', `rotate(${t > 3 ? Math.sin(t * 1.8) * 3 : 0} ${teacher.neck[0]} ${teacher.neck[1]})`);
+
+  // Pantalla de videollamada: se enciende y los mosaicos aparecen uno a uno
+  const on = easeOutCubic(prog(t, 3.3, 3.6));
+  screenOn.setAttribute('opacity', on);
+  screenOn.setAttribute('transform', `translate(0 ${VW.h / 2 * (1 - on)}) scale(1 ${Math.max(0.01, on)})`);
+  tiles.forEach((tl, k) => {
+    const a = 3.55 + k * 0.14;
+    const e = Math.max(0, easeOutBack(prog(t, a, a + 0.4), 2.2));
+    tl.av.setAttribute('transform', `translate(${tl.cx} ${tl.cy + 0.3}) scale(${e}) translate(${-tl.cx} ${-tl.cy - 0.3})`);
+    const speaker = t > 4.6 ? Math.floor((t - 4.6) / 0.9) % 6 : -1;
+    const order = [1, 3, 5, 0, 4, 2];
+    const ring = speaker >= 0 && order[speaker] === k;
+    tl.ring.setAttribute('opacity', ring ? 0.6 + 0.4 * Math.sin(t * 10) : 0);
+  });
+  wifi.forEach((w, k) => {
+    const ph = ((t * 1.4 - k * 0.22) % 1 + 1) % 1;
+    w.setAttribute('opacity', t > 3.6 ? 0.25 + 0.75 * Math.sin(ph * Math.PI) : 0.25);
+  });
+
+  // Pizarrón: la tiza escribe poco a poco
+  chalkRect.setAttribute('width', 3.7 * easeInOut(prog(t, 3.6, 7.0)));
+
+  // Proyector y diapositiva
+  const bp = easeOutCubic(prog(t, 4.0, 4.4));
+  const flicker = t > 4.4 ? 0.9 + 0.1 * Math.sin(t * 7) : 1;
+  beam.setAttribute('opacity', bp * 0.55 * flicker);
+  lens.setAttribute('opacity', 0.3 + bp * 0.7);
+  slide.setAttribute('opacity', bp);
+  bars.forEach((b, k) => {
+    const e = easeOutBack(prog(t, 4.35 + k * 0.18, 4.95 + k * 0.18), 1.4);
+    const h = b.h * Math.max(0, e);
+    b.el.setAttribute('y', 2.3 - h); b.el.setAttribute('height', h);
+  });
+
+  // Laptops encendidas
+  laptops.forEach(l => l.scr.setAttribute('opacity', easeOutCubic(prog(t, l.t, l.t + 0.3))));
+
+  // Logo de la universidad
+  const lp = Math.max(0, easeOutBack(prog(t, 5.3, 5.9), 1.8));
+  const LS = 190 / 447;
+  $('logoCard').setAttribute('transform', `translate(${1040 - 190 / 2} ${1310 - 190 / 2}) scale(${LS * lp}) translate(-223.5 -223.5)`);
+  $('logoCard').setAttribute('opacity', lp > 0 ? 1 : 0);
+  $('logoShine').setAttribute('x', lerp(-200, 700, easeInOut(prog(t, 6.0, 6.8))));
+}
+
+window.DURATION = DURATION;
+document.fonts.ready.then(() => {
+  window.render = render;
+  window.ready = true;
+  if (!location.search.includes('export')) {
+    const t0 = performance.now();
+    const loop = now => { render(((now - t0) / 1000) % (DURATION + 1)); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  } else render(0);
+});
+</script>
+</body>
+</html>
