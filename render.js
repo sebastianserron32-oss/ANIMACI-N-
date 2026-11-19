@@ -1,6 +1,7 @@
 // Renderiza una animación HTML a MP4 (9:16 por defecto; 4:5 si la página define window.SIZE).
 // Uso: node render.js [archivo.html] [salida.mp4] [fps]   (requiere playwright y ffmpeg)
 //      node render.js winet.html winet_16x9.mp4 60   (16:9 vía window.SIZE)
+//      node render.js winet_9x16.html winet_9x16.mp4 60
 // Ej.: node render.js animacion.html animacion_9x16.mp4 60
 //      node render.js redes.html redes_9x16.mp4 60
 //      node render.js hibrida.html hibrida_4x5.mp4 60
